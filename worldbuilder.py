@@ -1,8 +1,8 @@
 import collectionFieldConst
+import printing
 from bson.json_util import loads
 from pymongo import MongoClient
 from bson.objectid import ObjectId
-import textwrap
 
 
 
@@ -12,12 +12,23 @@ def toJSON(col_name):
     col_fields = []
 
     # Match the collection to its list of fields
-    if col_name == "names":
-        col_fields = collectionFieldConst.NAME_FIELDS
+    col_fields = collectionFieldConst.COLLECTION_FIELDS_DICT[col_name]
+    # if col_name == "names":
+    #     col_fields = collectionFieldConst.NAME_FIELDS
+    # elif col_name = "character":
 
     for field in col_fields:
-        user_in = input(field + ": ")
-        record[field] = user_in
+
+        # If the field is nested
+        if field in list(collectionFieldConst.COLLECTION_FIELDS_DICT.keys()):
+            nested_record = {}
+            for subfield in collectionFieldConst.COLLECTION_FIELDS_DICT[field]:
+                user_in = input(subfield + ": ")
+                nested_record[subfield] = user_in
+            record[field] = nested_record
+        else:
+            user_in = input(field + ": ")
+            record[field] = user_in
 
     return record
 
@@ -32,56 +43,13 @@ def printAllDatabase(client):
 
 # Print all collections in the current database
 def printAllCollections(database):
+    print("0: Create a new collection")
     all_cols = database.list_collection_names()
     i = 1
     while i < len(all_cols) + 1:
         print(str(i) + ": " + all_cols[i - 1])
         i += 1
-
-
-def printAsTable(working_collection, list):
-    all_fields = collectionFieldConst.COLLECTION_FIELDS_DICT[working_collection]
-    for field in all_fields:
-        if field == "meaning":
-            print("{:<25}".format(field), end ="")
-        elif field == "pronunciation" or field == "word formation":
-            print("{:<20}".format(field), end ="")
-        else:
-            print("{:<15}".format(field), end ="")
-    print()
-
-
-    for record in list:
-        needWrapping = False
-        multirows = []
-        for key in record:
-            # if record[key] == "":
-            #     substitute = "NaN"
-            #     print("{:<15}".format(substitute), end = "\t")
-            if key == "meaning":
-                if len(record[key]) > 25:
-                    needWrapping = True
-                    multirows = textwrap.wrap(record[key], width=24)
-                    print("{:<25}".format(multirows[0]), end = "")
-                else:
-                    print("{:<25}".format(record[key]), end = "")
-            elif key == "pronunciation" or key == "word formation":
-                print("{:<20}".format(record[key]), end ="")   
-            else:
-                print("{:<15}".format(record[key]), end = "")
             
-        print()
-        if needWrapping == True:
-            indent = " "
-            index = 1
-            while index < len(multirows):
-                for i in range(70):
-                    print(indent, end = "")
-                print(multirows[index])
-                index += 1
-            
-
-
 
 def existInList(list, element):
     for i in list:
@@ -109,7 +77,13 @@ if __name__ == "__main__":
     all_cols = db.list_collection_names()
     print("Select a number from the list of existing collections in \"" + working_database + "\"")
     printAllCollections(db)
-    working_collection = all_cols[int(input("Connecting collection: ")) - 1]
+    user_choice = int(input("Connecting collection: "))
+
+    if user_choice == 0:
+        working_collection = input("New collection name: ")
+    else:
+        working_collection = all_cols[user_choice - 1]
+
     collection = db[working_collection]
     print("Currently working with \"" + working_collection + "\"\n")
 
@@ -180,7 +154,7 @@ if __name__ == "__main__":
                     print(record)
             else:
                 # print(list(records))
-                printAsTable(working_collection, list(records))
+                printing.printAsTable(working_collection, list(records))
             print()
 
 
@@ -195,7 +169,7 @@ if __name__ == "__main__":
         # show result in a table format
         elif operation == "printTable":
             cursor = collection.find({}, {"_id":0})
-            printAsTable(working_collection, list(cursor))
+            printing.printAsTable(working_collection, list(cursor))
 
         elif operation == "switchdb":
             print("Select a number from the list of existing databases.")
